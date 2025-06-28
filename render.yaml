@@ -2,15 +2,29 @@ services:
   - type: web
     name: bodyai-app
     env: python
-    # The build command is correct
-    buildCommand: "pip install -r requirements.txt"
+    region: oregon  # or your preferred region
+    plan: starter   # or starter/standard/pro based on your needs
     
-    # <<< THIS IS THE CRITICAL FIX >>>
-    # We are telling Gunicorn to bind to the host 0.0.0.0 and the port
-    # provided by Render in the $PORT environment variable.
-    startCommand: "gunicorn --bind 0.0.0.0:$PORT app:app"
-
-    # This part is also still necessary
+    # Build configuration
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    
+    # CRITICAL: This tells Render how to start your app
+    # Gunicorn will bind to 0.0.0.0:$PORT where $PORT is provided by Render
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 0 app:app"
+    
+    # Environment variables
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "2"  # Suppress TensorFlow warnings
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    
+    # Health check (optional but recommended)
+    healthCheckPath: /api/status
+    
+    # Auto-deploy from main branch
+    autoDeploy: true
