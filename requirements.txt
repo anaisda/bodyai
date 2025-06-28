@@ -1,0 +1,13 @@
+Flask==2.3.3
+Flask-CORS==4.0.0
+opencv-python-headless==4.8.1.78
+numpy==1.24.3
+Pillow==10.0.1
+werkzeug==2.3.7
+mediapipe==0.10.7
+scipy==1.11.3
+ultralytics==8.0.196
+torch==2.0.1+cpu
+torchvision==0.15.2+cpu
+psutil==5.9.6
+pyyaml==6.0.1
