@@ -3,16 +3,14 @@ Flask>=3.0.0
 gunicorn>=21.2.0
 
 # Core AI & ML Dependencies
-# Updated mediapipe version to one available on Vercel's Python 3.12 environment
 mediapipe>=0.10.13
 
-# Using the specific CPU-only versions is a good optimization for Vercel
-torch==2.0.1+cpu
-torchvision==0.15.2+cpu
+# Standard Torch/Torchvision for server environments (CPU will be used by default)
+torch>=2.2.0
+torchvision>=0.17.0
 ultralytics>=8.0.0
 
 # Core data and image processing
-# Loosened version pins to improve compatibility
 opencv-python-headless>=4.8.0
 scikit-image>=0.21.0
 Pillow>=10.0.0
