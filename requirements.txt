@@ -1,29 +1,30 @@
-# For the web server (app.py)
+# Web Framework
 Flask>=3.0.0
 gunicorn>=21.2.0
 
 # Core AI & ML Dependencies
-# mediapipe will install the correct lightweight TF runtime it needs
-mediapipe==0.10.7
-# Using the CPU-only versions is excellent for Vercel!
+# Updated mediapipe version to one available on Vercel's Python 3.12 environment
+mediapipe>=0.10.13
+
+# Using the specific CPU-only versions is a good optimization for Vercel
 torch==2.0.1+cpu
 torchvision==0.15.2+cpu
-ultralytics==8.0.196
+ultralytics>=8.0.0
 
 # Core data and image processing
-# The 'headless' version is perfect for servers - it has no GUI components.
-opencv-python-headless==4.8.1.78
+# Loosened version pins to improve compatibility
+opencv-python-headless>=4.8.0
 scikit-image>=0.21.0
-Pillow==10.0.1
-numpy==1.24.3
-scipy==1.11.3
+Pillow>=10.0.0
+numpy>=1.24.0
+scipy>=1.11.0
 pandas>=2.0.0
 scikit-learn>=1.3.0
 albumentations>=1.3.0
 
 # Utilities used by the backend
-pyyaml==6.0.1
-psutil==5.9.6
+pyyaml>=6.0.0
+psutil>=5.9.0
 click>=8.1.0
 tqdm>=4.65.0
 rich>=13.0.0
