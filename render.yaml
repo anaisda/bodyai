@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: bodyai-app
+    env: python
+    # The build command is correct
+    buildCommand: "pip install -r requirements.txt"
+    
+    # <<< THIS IS THE CRITICAL FIX >>>
+    # We are telling Gunicorn to bind to the host 0.0.0.0 and the port
+    # provided by Render in the $PORT environment variable.
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT app:app"
+
+    # This part is also still necessary
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
