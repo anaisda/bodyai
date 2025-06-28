@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Complete Vercel-Ready Flask App for AI Body Measurement System
-=============================================================
+Complete Render.com-Ready Flask App for AI Body Measurement System
+=================================================================
 
-Optimized for Vercel deployment with automatic model downloads
+Optimized for Render deployment with proper port binding
 """
 
 import os
@@ -44,19 +44,19 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 CORS(app)  # Enable CORS for all routes
 
-# Configuration
-UPLOAD_FOLDER = '/tmp/uploads'  # Use /tmp for Vercel
+# Configuration - Updated for Render.com
+UPLOAD_FOLDER = '/tmp/uploads'
 RESULTS_FOLDER = '/tmp/results'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp'}
 
-# Create necessary directories (in /tmp for Vercel)
+# Create necessary directories
 for folder in [UPLOAD_FOLDER, RESULTS_FOLDER]:
     try:
         Path(folder).mkdir(parents=True, exist_ok=True)
-    except:
-        pass  # Skip if can't create (Vercel handles this)
+    except Exception as e:
+        print(f"Warning: Could not create directory {folder}: {e}")
 
-# Setup serverless-friendly logging
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -101,6 +101,7 @@ def initialize_measurement_system():
     
     if not measurement_system_available:
         logger.info("Measurement system modules not available - running in demo mode")
+        system_initialized = True  # Set to True so we don't keep trying
         return False
     
     try:
@@ -109,7 +110,7 @@ def initialize_measurement_system():
         # Download models if needed
         download_models_if_needed()
         
-        # Create configuration with smaller models for Vercel
+        # Create configuration with smaller models for deployment
         config = create_production_config()
         
         # Use smaller, faster models for deployment
@@ -117,7 +118,7 @@ def initialize_measurement_system():
         config.model.secondary_pose_model = "yolov8s-pose.pt"  # 22MB
         config.model.segmentation_model = "yolov8n-seg.pt"  # 6MB
         
-        # Optimize for serverless
+        # Optimize for deployment
         config.model.batch_size = 1
         config.model.num_workers = 1
         config.processing.parallel_processing = False
@@ -134,7 +135,7 @@ def initialize_measurement_system():
     except Exception as e:
         logger.error(f"Failed to initialize measurement system: {e}")
         logger.error(traceback.format_exc())
-        system_initialized = False
+        system_initialized = True  # Set to True so we don't keep trying
         return False
 
 def process_image_data(image_data: bytes, view_type: str) -> Optional[np.ndarray]:
@@ -150,9 +151,9 @@ def process_image_data(image_data: bytes, view_type: str) -> Optional[np.ndarray
         # Convert BGR to RGB for processing
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
-        # Resize if too large (important for Vercel memory limits)
+        # Resize if too large (important for memory limits)
         h, w = image_rgb.shape[:2]
-        max_dimension = 1280  # Smaller for Vercel
+        max_dimension = 1280
         
         if max(h, w) > max_dimension:
             scale = max_dimension / max(h, w)
@@ -310,10 +311,10 @@ def create_comprehensive_demo_results(views_uploaded: List[str], reference_heigh
             'reference_height': reference_height,
             'garment_type': garment_type,
             'processing_time_ms': 1250,
-            'system_version': 'Vercel Optimized v1.0',
+            'system_version': 'Render Optimized v1.0',
             'timestamp': datetime.now().isoformat(),
             'total_measurements': len(measurements),
-            'deployment_platform': 'vercel'
+            'deployment_platform': 'render'
         }
     }
 
@@ -388,12 +389,12 @@ def index():
     <body>
         <div class="container">
             <h1>🎉 AI Body Measurement System</h1>
-            <h2>Successfully Deployed on Vercel!</h2>
+            <h2>Successfully Deployed on Render.com!</h2>
             
             <div class="status">
                 <h3>✅ Deployment Status: SUCCESS</h3>
-                <p>Your AI body measurement system is live and running on Vercel!</p>
-                <p><strong>System Mode:</strong> {'Full AI System Ready' if system_initialized else 'Demo Mode Active'}</p>
+                <p>Your AI body measurement system is live and running on Render!</p>
+                <p><strong>System Mode:</strong> {'Full AI System Ready' if (system_initialized and measurement_system_available) else 'Demo Mode Active'}</p>
             </div>
             
             <div class="features">
@@ -411,37 +412,33 @@ def index():
                 </div>
                 <div class="feature">
                     <h4>⚡ Real-Time Processing</h4>
-                    <p>Fast serverless processing with automatic scaling</p>
+                    <p>Fast processing with auto-scaling infrastructure</p>
                 </div>
             </div>
             
             <div class="instructions">
                 <h3>🚀 Your App is Live!</h3>
-                <p>To get the full professional interface:</p>
-                <ol>
-                    <li>Add the <code>web_interface.html</code> file to your repository</li>
-                    <li>Commit and push to GitHub</li>
-                    <li>Vercel will automatically redeploy with the full interface</li>
-                </ol>
-                
-                <h3>🔗 Test Your API:</h3>
-                <p><a href="/api/status">📊 Check System Status</a></p>
+                <p>Test your deployment:</p>
+                <ul>
+                    <li><a href="/api/status">📊 Check System Status</a></li>
+                    <li>Upload images to test the measurement API</li>
+                    <li>Share your live URL with users</li>
+                </ul>
                 
                 <h3>📋 Deployment Details:</h3>
                 <ul>
-                    <li><strong>Platform:</strong> Vercel Serverless</li>
-                    <li><strong>Runtime:</strong> Python 3.9</li>
+                    <li><strong>Platform:</strong> Render.com</li>
+                    <li><strong>Runtime:</strong> Python 3.11.9</li>
                     <li><strong>Models:</strong> Auto-download enabled</li>
                     <li><strong>Features:</strong> Multi-view processing, 40+ measurements, professional reports</li>
-                    <li><strong>Global CDN:</strong> Worldwide fast access</li>
-                    <li><strong>Auto-scaling:</strong> Handles any traffic load</li>
+                    <li><strong>Auto-scaling:</strong> Handles traffic load automatically</li>
                 </ul>
                 
-                <h3>🎯 Next Steps:</h3>
-                <p>1. Add the web interface HTML file<br>
-                2. Test with real images<br>
-                3. Share your live URL with users<br>
-                4. Monitor usage in Vercel dashboard</p>
+                <h3>🎯 System Ready For:</h3>
+                <p>✅ Image uploads and processing<br>
+                ✅ Multi-view body measurement<br>
+                ✅ Real-time API responses<br>
+                ✅ Professional measurement reports</p>
             </div>
         </div>
     </body>
@@ -456,37 +453,36 @@ def api_status():
             system_info = get_system_info()
         else:
             system_info = {
-                'platform': 'Vercel Serverless',
-                'python_version': '3.x',
+                'platform': 'Render.com',
+                'python_version': '3.11.9',
                 'status': 'Demo mode - measurement modules available'
             }
     except:
-        system_info = {'platform': 'Vercel', 'status': 'Running'}
+        system_info = {'platform': 'Render.com', 'status': 'Running'}
     
     return jsonify({
-        'status': 'ready' if system_initialized else 'demo_mode',
-        'platform': 'vercel',
+        'status': 'ready' if (system_initialized and measurement_system_available) else 'demo_mode',
+        'platform': 'render',
         'measurement_system_available': measurement_system_available,
         'system_initialized': system_initialized,
         'system_info': system_info,
-        'version': '1.0.0-vercel-optimized',
+        'version': '1.0.0-render-optimized',
         'features': {
             'multi_view_support': True,
             'comprehensive_measurements': True,
             'skeleton_visualization': True,
-            'serverless_deployment': True,
             'auto_model_download': True,
-            'real_time_processing': system_initialized,
-            'demo_mode': not system_initialized,
+            'real_time_processing': system_initialized and measurement_system_available,
+            'demo_mode': not (system_initialized and measurement_system_available),
             'export_formats': ['json', 'csv', 'pdf'],
             'supported_garments': ['general', 'tops', 'pants', 'dresses', 'bras']
         },
         'deployment_info': {
-            'platform': 'Vercel',
+            'platform': 'Render.com',
             'auto_scaling': True,
-            'global_cdn': True,
             'https_enabled': True,
-            'models': 'Auto-download enabled'
+            'models': 'Auto-download enabled',
+            'tensorflow_warning_suppressed': True
         }
     })
 
@@ -496,9 +492,6 @@ def process_measurements():
     
     start_time = time.time()
     session_id = str(uuid.uuid4())
-    
-    # Initialize system if not done (for serverless)
-    initialize_measurement_system()
     
     try:
         logger.info(f"Processing measurement request {session_id}")
@@ -534,7 +527,7 @@ def process_measurements():
                         view_images[view_type] = image_rgb
                         
                         # Detect body if system is initialized
-                        if system_initialized and body_detector:
+                        if system_initialized and measurement_system_available and body_detector:
                             try:
                                 detections = body_detector.detect_bodies(image_rgb, method="ultra_precise")
                                 if detections:
@@ -552,7 +545,7 @@ def process_measurements():
         logger.info(f"Processed {len(view_images)} views: {list(view_images.keys())}")
         
         # Calculate measurements (real system or demo)
-        if system_initialized and measurement_engine and view_detections:
+        if system_initialized and measurement_system_available and measurement_engine and view_detections:
             try:
                 logger.info("Calculating ultra-precise measurements...")
                 
@@ -614,10 +607,10 @@ def process_measurements():
                             'garment_type': garment_type,
                             'precision': precision,
                             'processing_time_ms': round(processing_time, 1),
-                            'system_version': 'Ultra-Precise Vercel v2.0',
+                            'system_version': 'Ultra-Precise Render v2.0',
                             'timestamp': datetime.now().isoformat(),
                             'total_measurements': len(web_measurements),
-                            'deployment_platform': 'vercel'
+                            'deployment_platform': 'render'
                         }
                     }
                     
@@ -658,12 +651,21 @@ def not_found(error):
 def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
-# Vercel serverless handler
+# CRITICAL FIX FOR RENDER.COM DEPLOYMENT
 if __name__ == '__main__':
-    # Local development
+    # Get port from environment variable (Render provides this)
     port = int(os.environ.get('PORT', 5000))
-    logger.info(f"Starting AI Body Measurement Web Server on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
-else:
-    # Vercel serverless - initialize on import
+    
+    # Initialize measurement system on startup
     initialize_measurement_system()
+    
+    # Suppress TensorFlow warnings if possible
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    
+    logger.info(f"Starting AI Body Measurement System on Render.com")
+    logger.info(f"Port: {port}")
+    logger.info(f"System initialized: {system_initialized}")
+    logger.info(f"Measurement system available: {measurement_system_available}")
+    
+    # IMPORTANT: Bind to 0.0.0.0 and the PORT environment variable
+    app.run(host='0.0.0.0', port=port, debug=False)
