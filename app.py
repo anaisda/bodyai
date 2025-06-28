@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Vercel-Compatible Flask App for AI Body Measurement System
-=========================================================
+Complete Vercel-Ready Flask App for AI Body Measurement System
+=============================================================
 
-Optimized for Vercel serverless deployment
+Optimized for Vercel deployment with automatic model downloads
 """
 
 import os
@@ -74,8 +74,25 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def download_models_if_needed():
+    """Download YOLO models if not present - handled automatically by ultralytics"""
+    try:
+        # Create models directory
+        models_dir = Path("models")
+        models_dir.mkdir(exist_ok=True)
+        
+        # Models will be downloaded automatically by ultralytics
+        # We use smaller models for faster deployment
+        logger.info("Models will be downloaded automatically by ultralytics when needed")
+        
+        return True
+        
+    except Exception as e:
+        logger.warning(f"Model download setup failed: {e}")
+        return False
+
 def initialize_measurement_system():
-    """Initialize the body measurement system (cached)"""
+    """Initialize the body measurement system (cached for serverless)"""
     global body_detector, measurement_engine, config, system_initialized
     
     # Skip if already initialized
@@ -89,20 +106,34 @@ def initialize_measurement_system():
     try:
         logger.info("Initializing AI Body Measurement System...")
         
-        # Create configuration
+        # Download models if needed
+        download_models_if_needed()
+        
+        # Create configuration with smaller models for Vercel
         config = create_production_config()
+        
+        # Use smaller, faster models for deployment
+        config.model.primary_pose_model = "yolov8n-pose.pt"  # 6MB instead of 130MB
+        config.model.secondary_pose_model = "yolov8s-pose.pt"  # 22MB
+        config.model.segmentation_model = "yolov8n-seg.pt"  # 6MB
+        
+        # Optimize for serverless
+        config.model.batch_size = 1
+        config.model.num_workers = 1
+        config.processing.parallel_processing = False
         
         # Initialize components
         body_detector = FixedEnhancedBodyDetector(config)
         measurement_engine = FixedEnhancedMeasurementEngine(config)
         
         system_initialized = True
-        logger.info("AI Body Measurement System initialized successfully")
+        logger.info("AI Body Measurement System initialized successfully with optimized models")
         
         return True
         
     except Exception as e:
         logger.error(f"Failed to initialize measurement system: {e}")
+        logger.error(traceback.format_exc())
         system_initialized = False
         return False
 
@@ -279,9 +310,10 @@ def create_comprehensive_demo_results(views_uploaded: List[str], reference_heigh
             'reference_height': reference_height,
             'garment_type': garment_type,
             'processing_time_ms': 1250,
-            'system_version': 'Vercel Web v1.0',
+            'system_version': 'Vercel Optimized v1.0',
             'timestamp': datetime.now().isoformat(),
             'total_measurements': len(measurements),
+            'deployment_platform': 'vercel'
         }
     }
 
@@ -296,14 +328,14 @@ def index():
         except Exception as e:
             logger.error(f"Error reading web_interface.html: {e}")
     
-    # Return basic interface if HTML file doesn't exist
+    # Return deployment success page if HTML file doesn't exist
     return f"""
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI Body Measurement System - Vercel</title>
+        <title>AI Body Measurement System - Deployed Successfully!</title>
         <style>
             body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -314,7 +346,7 @@ def index():
                 color: white;
             }}
             .container {{
-                max-width: 800px;
+                max-width: 900px;
                 margin: 0 auto;
                 background: rgba(255, 255, 255, 0.1);
                 backdrop-filter: blur(10px);
@@ -330,6 +362,18 @@ def index():
                 background: rgba(255, 255, 255, 0.1);
                 border-left: 5px solid #27ae60;
             }}
+            .features {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin: 30px 0;
+            }}
+            .feature {{
+                background: rgba(255, 255, 255, 0.05);
+                padding: 20px;
+                border-radius: 10px;
+                text-align: left;
+            }}
             .instructions {{
                 text-align: left;
                 background: rgba(255, 255, 255, 0.05);
@@ -337,37 +381,67 @@ def index():
                 border-radius: 10px;
                 margin-top: 20px;
             }}
+            a {{ color: #3498db; text-decoration: none; }}
+            a:hover {{ text-decoration: underline; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>AI Body Measurement System</h1>
+            <h1>🎉 AI Body Measurement System</h1>
             <h2>Successfully Deployed on Vercel!</h2>
             
             <div class="status">
-                <h3>System Status: {'Ready' if system_initialized else 'Demo Mode'}</h3>
-                <p>Your AI body measurement system is running on Vercel!</p>
+                <h3>✅ Deployment Status: SUCCESS</h3>
+                <p>Your AI body measurement system is live and running on Vercel!</p>
+                <p><strong>System Mode:</strong> {'Full AI System Ready' if system_initialized else 'Demo Mode Active'}</p>
+            </div>
+            
+            <div class="features">
+                <div class="feature">
+                    <h4>🔬 AI Processing</h4>
+                    <p>Advanced body detection and measurement algorithms</p>
+                </div>
+                <div class="feature">
+                    <h4>📱 Multi-View Support</h4>
+                    <p>Front, side, and back view analysis</p>
+                </div>
+                <div class="feature">
+                    <h4>📏 40+ Measurements</h4>
+                    <p>Comprehensive body measurements for all garment types</p>
+                </div>
+                <div class="feature">
+                    <h4>⚡ Real-Time Processing</h4>
+                    <p>Fast serverless processing with automatic scaling</p>
+                </div>
             </div>
             
             <div class="instructions">
-                <h3>Setup Complete!</h3>
-                <p>Your system is deployed and ready to use. To get the full professional interface:</p>
+                <h3>🚀 Your App is Live!</h3>
+                <p>To get the full professional interface:</p>
                 <ol>
-                    <li>Save the enhanced web interface as <code>web_interface.html</code></li>
-                    <li>Commit and push to your repository</li>
+                    <li>Add the <code>web_interface.html</code> file to your repository</li>
+                    <li>Commit and push to GitHub</li>
                     <li>Vercel will automatically redeploy with the full interface</li>
                 </ol>
                 
-                <h3>Quick Test:</h3>
-                <p><a href="/api/status" style="color: #3498db;">Check API Status</a></p>
+                <h3>🔗 Test Your API:</h3>
+                <p><a href="/api/status">📊 Check System Status</a></p>
                 
-                <h3>Vercel Deployment Info:</h3>
+                <h3>📋 Deployment Details:</h3>
                 <ul>
-                    <li>Platform: Vercel Serverless</li>
-                    <li>Runtime: Python</li>
-                    <li>Status: Deployed Successfully</li>
-                    <li>Features: Multi-view processing, 40+ measurements</li>
+                    <li><strong>Platform:</strong> Vercel Serverless</li>
+                    <li><strong>Runtime:</strong> Python 3.9</li>
+                    <li><strong>Models:</strong> Auto-download enabled</li>
+                    <li><strong>Features:</strong> Multi-view processing, 40+ measurements, professional reports</li>
+                    <li><strong>Global CDN:</strong> Worldwide fast access</li>
+                    <li><strong>Auto-scaling:</strong> Handles any traffic load</li>
                 </ul>
+                
+                <h3>🎯 Next Steps:</h3>
+                <p>1. Add the web interface HTML file<br>
+                2. Test with real images<br>
+                3. Share your live URL with users<br>
+                4. Monitor usage in Vercel dashboard</p>
             </div>
         </div>
     </body>
@@ -395,16 +469,24 @@ def api_status():
         'measurement_system_available': measurement_system_available,
         'system_initialized': system_initialized,
         'system_info': system_info,
-        'version': '1.0.0-vercel',
+        'version': '1.0.0-vercel-optimized',
         'features': {
             'multi_view_support': True,
             'comprehensive_measurements': True,
             'skeleton_visualization': True,
             'serverless_deployment': True,
+            'auto_model_download': True,
             'real_time_processing': system_initialized,
             'demo_mode': not system_initialized,
             'export_formats': ['json', 'csv', 'pdf'],
             'supported_garments': ['general', 'tops', 'pants', 'dresses', 'bras']
+        },
+        'deployment_info': {
+            'platform': 'Vercel',
+            'auto_scaling': True,
+            'global_cdn': True,
+            'https_enabled': True,
+            'models': 'Auto-download enabled'
         }
     })
 
@@ -415,7 +497,7 @@ def process_measurements():
     start_time = time.time()
     session_id = str(uuid.uuid4())
     
-    # Initialize system if not done
+    # Initialize system if not done (for serverless)
     initialize_measurement_system()
     
     try:
@@ -535,6 +617,7 @@ def process_measurements():
                             'system_version': 'Ultra-Precise Vercel v2.0',
                             'timestamp': datetime.now().isoformat(),
                             'total_measurements': len(web_measurements),
+                            'deployment_platform': 'vercel'
                         }
                     }
                     
@@ -582,5 +665,5 @@ if __name__ == '__main__':
     logger.info(f"Starting AI Body Measurement Web Server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=True)
 else:
-    # Vercel serverless
+    # Vercel serverless - initialize on import
     initialize_measurement_system()
