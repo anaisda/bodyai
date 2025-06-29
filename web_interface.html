@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Body Measurement System - Professional Edition</title>
+    <title>AI Body Measurement System - Real AI Edition</title>
     <style>
         * {
             margin: 0;
@@ -41,9 +41,21 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
+        .header .badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin: 5px;
+        }
+
         .header p {
             color: rgba(255, 255, 255, 0.9);
             font-size: 1.1rem;
+            margin-top: 10px;
         }
 
         .main-content {
@@ -64,6 +76,19 @@
             color: #2c3e50;
             margin-bottom: 20px;
             font-size: 1.5rem;
+        }
+
+        .ai-status {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .ai-status.loading {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
         }
 
         .multi-view-grid {
@@ -216,40 +241,9 @@
             overflow: hidden;
             background: #f8f9fa;
             min-height: 500px;
-        }
-
-        .multi-view-canvas-container {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            min-height: 600px;
-        }
-
-        .single-view-canvas {
-            flex: 1;
-            min-width: 200px;
-            position: relative;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .view-title {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 10;
-        }
-
-        #visualization-canvas {
-            width: 100%;
-            height: auto;
-            display: block;
+            align-items: center;
+            justify-content: center;
         }
 
         .measurements-panel {
@@ -405,28 +399,6 @@
             display: none;
         }
 
-        .toggle-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .toggle-btn {
-            background: #ecf0f1;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s;
-        }
-
-        .toggle-btn.active {
-            background: #3498db;
-            color: white;
-        }
-
         .summary-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -454,20 +426,6 @@
             margin-top: 5px;
         }
 
-        .view-status {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #bdc3c7;
-        }
-
-        .view-status.loaded {
-            background: #27ae60;
-        }
-
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -489,14 +447,43 @@
                 font-size: 1.8rem;
             }
         }
+
+        .real-ai-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
+    <div class="real-ai-indicator">
+        🤖 Real AI System Active
+    </div>
+
     <div class="container">
         <!-- Header -->
         <div class="header">
             <h1>AI Body Measurement System</h1>
-            <p>Professional Multi-View Body Analysis with Comprehensive Measurements</p>
+            <div>
+                <span class="badge">Real AI Processing</span>
+                <span class="badge">MediaPipe + YOLO</span>
+                <span class="badge">Cloud Deployed</span>
+            </div>
+            <p>Professional Multi-View Body Analysis with Real AI Models</p>
         </div>
 
         <!-- Main Content -->
@@ -504,9 +491,13 @@
             <!-- Upload Section -->
             <div class="upload-section">
                 <h2>Multi-View Image Upload</h2>
+                
+                <div class="ai-status" id="ai-status">
+                    🤖 Real AI System: Checking status...
+                </div>
+                
                 <div class="multi-view-grid">
                     <div class="view-panel" id="front-panel">
-                        <div class="view-status" id="front-status"></div>
                         <div class="view-label">Front View</div>
                         <div id="front-preview">
                             <p>Essential for width measurements</p>
@@ -516,7 +507,6 @@
                     </div>
                     
                     <div class="view-panel" id="side-panel">
-                        <div class="view-status" id="side-status"></div>
                         <div class="view-label">Side View</div>
                         <div id="side-preview">
                             <p>Critical for depth & circumferences</p>
@@ -526,7 +516,6 @@
                     </div>
                     
                     <div class="view-panel" id="back-panel">
-                        <div class="view-status" id="back-status"></div>
                         <div class="view-label">Back View</div>
                         <div id="back-preview">
                             <p>Optional for validation</p>
@@ -572,7 +561,7 @@
                 </div>
                 
                 <button class="process-btn" id="process-btn" onclick="processImages()" disabled>
-                    Process Multi-View Analysis
+                    🚀 Process with Real AI
                 </button>
             </div>
         </div>
@@ -581,11 +570,11 @@
         <div class="results-section" id="results-section" style="display: none;">
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p>Processing images with AI body measurement system...</p>
+                <p>Processing images with real AI body measurement system...</p>
             </div>
             
             <div id="results-content" style="display: none;">
-                <h2>Analysis Results</h2>
+                <h2>🎯 Real AI Analysis Results</h2>
                 
                 <!-- Summary Statistics -->
                 <div class="summary-stats" id="summary-stats">
@@ -596,21 +585,17 @@
                     <!-- Visualization Panel -->
                     <div class="visualization-panel">
                         <h3>Body Analysis Visualization</h3>
-                        <div class="toggle-controls">
-                            <button class="toggle-btn active" onclick="toggleVisualization('skeleton')">Skeleton</button>
-                            <button class="toggle-btn active" onclick="toggleVisualization('keypoints')">Keypoints</button>
-                            <button class="toggle-btn active" onclick="toggleVisualization('measurements')">Measurements</button>
-                            <button class="toggle-btn" onclick="toggleVisualization('confidence')">Confidence</button>
-                            <button class="toggle-btn" onclick="toggleVisualization('multiview')">Multi-View</button>
-                        </div>
                         <div class="canvas-container" id="canvas-container">
-                            <!-- Will be populated with canvas(es) -->
+                            <div style="text-align: center; color: #7f8c8d;">
+                                <h4>🤖 Real AI Keypoints Detected</h4>
+                                <p>Visualization will appear after processing</p>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Measurements Panel -->
                     <div class="measurements-panel">
-                        <h3>Comprehensive Body Measurements</h3>
+                        <h3>Real AI Body Measurements</h3>
                         <div id="measurements-list">
                             <!-- Measurements will be populated here -->
                         </div>
@@ -627,7 +612,7 @@
 
         <!-- Status Bar -->
         <div class="status-bar">
-            <div class="status-text" id="status-text">Ready - Upload images to begin comprehensive analysis</div>
+            <div class="status-text" id="status-text">Checking real AI system status...</div>
         </div>
     </div>
 
@@ -635,13 +620,36 @@
         // Global variables
         let uploadedImages = {};
         let analysisResults = null;
-        let visualizationSettings = {
-            skeleton: true,
-            keypoints: true,
-            measurements: true,
-            confidence: false,
-            multiview: false
-        };
+        let aiSystemReady = false;
+
+        // Check AI system status on load
+        async function checkAIStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                const statusElement = document.getElementById('ai-status');
+                const statusText = document.getElementById('status-text');
+                
+                if (status.ai_system_ready) {
+                    aiSystemReady = true;
+                    statusElement.innerHTML = '✅ Real AI System Ready - MediaPipe + YOLO Models Loaded';
+                    statusElement.className = 'ai-status';
+                    statusText.textContent = 'Real AI system ready - Upload images to begin analysis';
+                } else {
+                    statusElement.innerHTML = '⏳ Loading AI Models - Please wait...';
+                    statusElement.className = 'ai-status loading';
+                    statusText.textContent = 'AI models loading - This may take a few moments on first use';
+                    
+                    // Retry in 3 seconds
+                    setTimeout(checkAIStatus, 3000);
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+                document.getElementById('ai-status').innerHTML = '❌ AI System Error - Please refresh';
+                document.getElementById('status-text').textContent = 'AI system error - Please refresh the page';
+            }
+        }
 
         // Image upload handling
         function uploadImage(viewType) {
@@ -670,27 +678,29 @@
         function updateViewPanel(viewType, imageUrl, fileName) {
             const panel = document.getElementById(`${viewType}-panel`);
             const preview = document.getElementById(`${viewType}-preview`);
-            const status = document.getElementById(`${viewType}-status`);
             
             preview.innerHTML = `
-                <img src="${imageUrl}" alt="${viewType} view">
+                <img src="${imageUrl}" alt="${viewType} view" style="max-width: 100%; max-height: 200px;">
                 <p><small>${fileName}</small></p>
                 <button class="upload-btn" onclick="uploadImage('${viewType}')">Change Image</button>
             `;
             
             panel.classList.add('has-image');
-            status.classList.add('loaded');
         }
 
         function updateProcessButton() {
             const processBtn = document.getElementById('process-btn');
             const hasImages = Object.keys(uploadedImages).length > 0;
             
-            processBtn.disabled = !hasImages;
+            processBtn.disabled = !hasImages || !aiSystemReady;
             
-            if (hasImages) {
+            if (hasImages && aiSystemReady) {
                 const views = Object.keys(uploadedImages).join(', ');
-                processBtn.innerHTML = `Process ${Object.keys(uploadedImages).length} View(s) - ${views.toUpperCase()}`;
+                processBtn.innerHTML = `🚀 Process ${Object.keys(uploadedImages).length} View(s) with Real AI`;
+            } else if (!aiSystemReady) {
+                processBtn.innerHTML = '⏳ Loading AI Models...';
+            } else {
+                processBtn.innerHTML = '🚀 Process with Real AI';
             }
         }
 
@@ -705,12 +715,17 @@
                 return;
             }
 
+            if (!aiSystemReady) {
+                alert('AI system is still loading. Please wait a moment.');
+                return;
+            }
+
             // Show loading
             document.getElementById('results-section').style.display = 'block';
             document.getElementById('loading').style.display = 'block';
             document.getElementById('results-content').style.display = 'none';
             
-            updateStatus('Processing images with AI body measurement system...');
+            updateStatus('Processing images with real AI models...');
 
             try {
                 const formData = new FormData();
@@ -732,7 +747,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
 
                 const results = await response.json();
@@ -744,7 +760,7 @@
                 
                 // Display results
                 displayResults(results);
-                updateStatus(`Analysis complete: ${Object.keys(results.measurements || {}).length} measurements calculated`);
+                updateStatus(`Real AI analysis complete: ${Object.keys(results.measurements || {}).length} measurements calculated`);
                 
             } catch (error) {
                 console.error('Processing error:', error);
@@ -768,7 +784,7 @@
             summaryStats.innerHTML = `
                 <div class="stat-item">
                     <div class="stat-value">${Object.keys(results.measurements || {}).length}</div>
-                    <div class="stat-label">Total Measurements</div>
+                    <div class="stat-label">AI Measurements</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${metadata.views_processed || 0}</div>
@@ -776,15 +792,15 @@
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${(metadata.processing_time_ms || 0).toFixed(0)}ms</div>
-                    <div class="stat-label">Processing Time</div>
+                    <div class="stat-label">AI Processing Time</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${metadata.reference_height || 170}cm</div>
                     <div class="stat-label">Reference Height</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">${metadata.system_version || 'v1.0'}</div>
-                    <div class="stat-label">System Version</div>
+                    <div class="stat-value">${metadata.system_version || 'Real AI v2.0'}</div>
+                    <div class="stat-label">AI System</div>
                 </div>
             `;
         }
@@ -793,22 +809,22 @@
             const measurementsList = document.getElementById('measurements-list');
             measurementsList.innerHTML = '';
 
-            // Comprehensive categorization
+            // Categorize measurements
             const categories = {
                 'Circumferences': {
                     keywords: ['circumference'],
                     measurements: []
                 },
                 'Lengths & Heights': {
-                    keywords: ['length', 'height', 'inseam', 'outseam'],
+                    keywords: ['length', 'height'],
                     measurements: []
                 },
                 'Widths & Depths': {
                     keywords: ['width', 'depth'],
                     measurements: []
                 },
-                'Specialized Measurements': {
-                    keywords: ['slope', 'separation', 'span', 'rise'],
+                'AI Detected Measurements': {
+                    keywords: [],
                     measurements: []
                 }
             };
@@ -818,6 +834,8 @@
                 let categorized = false;
                 
                 for (const [categoryName, category] of Object.entries(categories)) {
+                    if (category.keywords.length === 0) continue; // Skip default category
+                    
                     if (category.keywords.some(keyword => name.includes(keyword))) {
                         category.measurements.push([name, measurement]);
                         categorized = true;
@@ -826,7 +844,7 @@
                 }
                 
                 if (!categorized) {
-                    categories['Specialized Measurements'].measurements.push([name, measurement]);
+                    categories['AI Detected Measurements'].measurements.push([name, measurement]);
                 }
             });
 
@@ -855,12 +873,16 @@
                     measurementDiv.classList.add(confidenceClass);
                     
                     const value = measurement.value || 0;
-                    const unit = measurement.unit || 'cm';
+                    const unit = measurement.unit || 'mm';
                     const method = measurement.method || 'AI Analysis';
+
+                    // Convert mm to cm for display
+                    const displayValue = unit === 'mm' ? (value / 10).toFixed(1) : value.toFixed(1);
+                    const displayUnit = unit === 'mm' ? 'cm' : unit;
 
                     measurementDiv.innerHTML = `
                         <div class="measurement-name">${name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                        <div class="measurement-value">${value.toFixed(1)} ${unit}</div>
+                        <div class="measurement-value">${displayValue} ${displayUnit}</div>
                         <div class="measurement-details">
                             <span>${method}</span>
                             <span class="confidence-badge">${(confidence * 100).toFixed(0)}%</span>
@@ -878,288 +900,26 @@
         function displayVisualization(results) {
             const canvasContainer = document.getElementById('canvas-container');
             
-            if (visualizationSettings.multiview && results.all_views_keypoints) {
-                // Multi-view visualization
-                canvasContainer.innerHTML = '';
-                canvasContainer.className = 'multi-view-canvas-container';
-                
-                Object.entries(results.all_views_keypoints).forEach(([viewName, keypoints]) => {
-                    const viewDiv = document.createElement('div');
-                    viewDiv.className = 'single-view-canvas';
-                    
-                    const viewTitle = document.createElement('div');
-                    viewTitle.className = 'view-title';
-                    viewTitle.textContent = viewName.toUpperCase();
-                    viewDiv.appendChild(viewTitle);
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 400;
-                    canvas.height = 600;
-                    canvas.style.width = '100%';
-                    canvas.style.height = '100%';
-                    viewDiv.appendChild(canvas);
-                    
-                    canvasContainer.appendChild(viewDiv);
-                    
-                    // Draw on this canvas
-                    if (uploadedImages[viewName]) {
-                        drawViewWithSkeleton(canvas, uploadedImages[viewName].dataUrl, keypoints);
-                    } else {
-                        drawSkeletonOnly(canvas, keypoints);
-                    }
-                });
+            if (results.keypoints && Object.keys(results.keypoints).length > 0) {
+                canvasContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <h4>🎯 Real AI Keypoints Detected</h4>
+                        <p><strong>Keypoints Found:</strong> ${Object.keys(results.keypoints).length}</p>
+                        <p><strong>AI Models Used:</strong> ${results.metadata?.ai_models_used?.join(' + ') || 'MediaPipe + YOLO'}</p>
+                        <p><strong>Calibration Ratio:</strong> ${(results.metadata?.calibration_ratio || 0).toFixed(4)} mm/pixel</p>
+                        <div style="margin-top: 15px; font-size: 0.9rem; color: #7f8c8d;">
+                            <p>Keypoints detected: ${Object.keys(results.keypoints).slice(0, 5).join(', ')}${Object.keys(results.keypoints).length > 5 ? '...' : ''}</p>
+                        </div>
+                    </div>
+                `;
             } else {
-                // Single view visualization
-                canvasContainer.innerHTML = '';
-                canvasContainer.className = 'canvas-container';
-                
-                const canvas = document.createElement('canvas');
-                canvas.id = 'visualization-canvas';
-                canvas.width = 600;
-                canvas.height = 800;
-                canvasContainer.appendChild(canvas);
-                
-                // Use the first uploaded image for visualization
-                const firstView = Object.keys(uploadedImages)[0];
-                if (firstView && uploadedImages[firstView]) {
-                    drawViewWithSkeleton(canvas, uploadedImages[firstView].dataUrl, results.keypoints);
-                } else {
-                    drawSkeletonOnly(canvas, results.keypoints);
-                }
-            }
-        }
-
-        function drawViewWithSkeleton(canvas, imageUrl, keypoints) {
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            
-            img.onload = function() {
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw the image
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                // Scale keypoints to canvas size
-                const scaleX = canvas.width / img.width;
-                const scaleY = canvas.height / img.height;
-                
-                const scaledKeypoints = {};
-                Object.entries(keypoints || {}).forEach(([name, point]) => {
-                    scaledKeypoints[name] = {
-                        x: point.x * scaleX,
-                        y: point.y * scaleY,
-                        confidence: point.confidence || 0.8
-                    };
-                });
-                
-                // Draw visualization elements
-                drawVisualizationElements(ctx, scaledKeypoints, canvas.width, canvas.height);
-            };
-            
-            img.src = imageUrl;
-        }
-
-        function drawSkeletonOnly(canvas, keypoints) {
-            const ctx = canvas.getContext('2d');
-            
-            // Clear canvas with a light background
-            ctx.fillStyle = '#f8f9fa';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw visualization elements
-            drawVisualizationElements(ctx, keypoints || {}, canvas.width, canvas.height);
-        }
-
-        function drawVisualizationElements(ctx, keypoints, width, height) {
-            // Draw skeleton connections
-            if (visualizationSettings.skeleton) {
-                drawEnhancedSkeleton(ctx, keypoints);
-            }
-
-            // Draw keypoints
-            if (visualizationSettings.keypoints) {
-                drawEnhancedKeypoints(ctx, keypoints);
-            }
-
-            // Draw measurements
-            if (visualizationSettings.measurements) {
-                drawMeasurementLines(ctx, keypoints);
-            }
-        }
-
-        function drawEnhancedSkeleton(ctx, keypoints) {
-            const connections = [
-                // Head and neck
-                ['nose', 'neck'],
-                ['left_ear', 'nose'],
-                ['right_ear', 'nose'],
-                ['left_eye', 'nose'],
-                ['right_eye', 'nose'],
-                
-                // Main body structure
-                ['neck', 'left_shoulder'],
-                ['neck', 'right_shoulder'],
-                ['left_shoulder', 'right_shoulder'],
-                ['left_shoulder', 'left_hip'],
-                ['right_shoulder', 'right_hip'],
-                ['left_hip', 'right_hip'],
-                
-                // Arms
-                ['left_shoulder', 'left_elbow'],
-                ['left_elbow', 'left_wrist'],
-                ['left_wrist', 'left_thumb'],
-                ['right_shoulder', 'right_elbow'],
-                ['right_elbow', 'right_wrist'],
-                ['right_wrist', 'right_thumb'],
-                
-                // Legs
-                ['left_hip', 'left_knee'],
-                ['left_knee', 'left_ankle'],
-                ['left_ankle', 'left_heel'],
-                ['right_hip', 'right_knee'],
-                ['right_knee', 'right_ankle'],
-                ['right_ankle', 'right_heel']
-            ];
-
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-
-            connections.forEach(([point1, point2]) => {
-                if (keypoints[point1] && keypoints[point2]) {
-                    const p1 = keypoints[point1];
-                    const p2 = keypoints[point2];
-                    
-                    // Color based on average confidence
-                    const avgConfidence = (p1.confidence + p2.confidence) / 2;
-                    if (avgConfidence >= 0.8) {
-                        ctx.strokeStyle = '#27ae60'; // Green
-                    } else if (avgConfidence >= 0.6) {
-                        ctx.strokeStyle = '#f39c12'; // Orange
-                    } else {
-                        ctx.strokeStyle = '#e74c3c'; // Red
-                    }
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
-            });
-        }
-
-        function drawEnhancedKeypoints(ctx, keypoints) {
-            Object.entries(keypoints).forEach(([name, point]) => {
-                const confidence = point.confidence || 0.8;
-                
-                // Size and color based on confidence
-                let radius, fillColor, strokeColor;
-                if (confidence >= 0.8) {
-                    radius = 6;
-                    fillColor = '#27ae60';
-                    strokeColor = '#ffffff';
-                } else if (confidence >= 0.6) {
-                    radius = 5;
-                    fillColor = '#f39c12';
-                    strokeColor = '#ffffff';
-                } else {
-                    radius = 4;
-                    fillColor = '#e74c3c';
-                    strokeColor = '#ffffff';
-                }
-
-                // Draw keypoint
-                ctx.fillStyle = fillColor;
-                ctx.strokeStyle = strokeColor;
-                ctx.lineWidth = 2;
-                
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
-                ctx.fill();
-                ctx.stroke();
-
-                // Draw confidence percentage if enabled
-                if (visualizationSettings.confidence) {
-                    ctx.fillStyle = '#2c3e50';
-                    ctx.font = 'bold 12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${(confidence * 100).toFixed(0)}%`, point.x, point.y - 15);
-                }
-            });
-        }
-
-        function drawMeasurementLines(ctx, keypoints) {
-            const measurements = [
-                {
-                    name: 'Shoulder Width',
-                    points: ['left_shoulder', 'right_shoulder'],
-                    color: '#8e44ad',
-                    offset: -30
-                },
-                {
-                    name: 'Hip Width',
-                    points: ['left_hip', 'right_hip'],
-                    color: '#3498db',
-                    offset: -20
-                },
-                {
-                    name: 'Arm Length (L)',
-                    points: ['left_shoulder', 'left_wrist'],
-                    color: '#e67e22',
-                    offset: 20
-                },
-                {
-                    name: 'Leg Length (L)',
-                    points: ['left_hip', 'left_ankle'],
-                    color: '#1abc9c',
-                    offset: 15
-                }
-            ];
-
-            ctx.lineWidth = 2;
-            ctx.font = 'bold 14px Arial';
-
-            measurements.forEach(measurement => {
-                const [point1Name, point2Name] = measurement.points;
-                if (keypoints[point1Name] && keypoints[point2Name]) {
-                    const p1 = keypoints[point1Name];
-                    const p2 = keypoints[point2Name];
-                    
-                    ctx.strokeStyle = measurement.color;
-                    ctx.fillStyle = measurement.color;
-                    
-                    // Draw measurement line
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    
-                    // Draw measurement label
-                    const midX = (p1.x + p2.x) / 2;
-                    const midY = (p1.y + p2.y) / 2 + measurement.offset;
-                    
-                    ctx.textAlign = 'center';
-                    ctx.fillText(measurement.name, midX, midY);
-                }
-            });
-        }
-
-        function toggleVisualization(type) {
-            visualizationSettings[type] = !visualizationSettings[type];
-            
-            // Update button appearance
-            const buttons = document.querySelectorAll('.toggle-btn');
-            buttons.forEach(button => {
-                if (button.textContent.toLowerCase().includes(type)) {
-                    button.classList.toggle('active', visualizationSettings[type]);
-                }
-            });
-            
-            // Redraw visualization
-            if (analysisResults) {
-                displayVisualization(analysisResults);
+                canvasContainer.innerHTML = `
+                    <div style="text-align: center; color: #e74c3c;">
+                        <h4>⚠️ No Keypoints Detected</h4>
+                        <p>The AI system could not detect body keypoints in the uploaded images.</p>
+                        <p>Try uploading clearer images with the person fully visible.</p>
+                    </div>
+                `;
             }
         }
 
@@ -1177,13 +937,14 @@
                 precision: document.getElementById('precision').value,
                 views_used: Object.keys(uploadedImages),
                 measurements: analysisResults.measurements || {},
-                metadata: analysisResults.metadata || {}
+                metadata: analysisResults.metadata || {},
+                ai_system: 'Real AI - MediaPipe + YOLO'
             };
 
             if (format === 'json') {
-                downloadJSON(data, `body_measurements_${data.timestamp.split('T')[0]}.json`);
+                downloadJSON(data, `ai_body_measurements_${data.timestamp.split('T')[0]}.json`);
             } else if (format === 'csv') {
-                downloadCSV(data, `body_measurements_${data.timestamp.split('T')[0]}.csv`);
+                downloadCSV(data, `ai_body_measurements_${data.timestamp.split('T')[0]}.csv`);
             } else if (format === 'pdf') {
                 generatePDF(data);
             }
@@ -1195,21 +956,19 @@
         }
 
         function downloadCSV(data, filename) {
-            let csv = 'Measurement,Value,Unit,Confidence,Method,Category\n';
+            let csv = 'Measurement,Value,Unit,Confidence,Method,AI_System\n';
             
             Object.entries(data.measurements).forEach(([name, measurement]) => {
                 const value = measurement.value || 0;
-                const unit = measurement.unit || 'cm';
+                const unit = measurement.unit || 'mm';
                 const confidence = measurement.confidence || 0.8;
                 const method = measurement.method || 'AI Analysis';
                 
-                // Determine category
-                let category = 'Other';
-                if (name.includes('circumference')) category = 'Circumference';
-                else if (name.includes('length') || name.includes('height')) category = 'Length';
-                else if (name.includes('width') || name.includes('depth')) category = 'Width/Depth';
+                // Convert mm to cm for CSV
+                const displayValue = unit === 'mm' ? (value / 10).toFixed(1) : value.toFixed(1);
+                const displayUnit = unit === 'mm' ? 'cm' : unit;
                 
-                csv += `"${name.replace(/_/g, ' ')}","${value.toFixed(1)}","${unit}","${(confidence * 100).toFixed(1)}%","${method}","${category}"\n`;
+                csv += `"${name.replace(/_/g, ' ')}","${displayValue}","${displayUnit}","${(confidence * 100).toFixed(1)}%","${method}","${data.ai_system}"\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -1223,10 +982,11 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Comprehensive Body Measurement Report</title>
+                    <title>Real AI Body Measurement Report</title>
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; }
                         .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 20px; }
+                        .ai-badge { background: #27ae60; color: white; padding: 5px 15px; border-radius: 15px; font-size: 12px; }
                         .info { margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; }
                         .category { margin-bottom: 25px; }
                         .category h3 { color: #2c3e50; border-bottom: 1px solid #bdc3c7; padding-bottom: 10px; }
@@ -1241,17 +1001,19 @@
                 </head>
                 <body>
                     <div class="header">
-                        <h1>Comprehensive Body Measurement Report</h1>
+                        <h1>Real AI Body Measurement Report</h1>
+                        <span class="ai-badge">Real AI Processing</span>
                         <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
                     </div>
                     
                     <div class="info">
-                        <h3>Subject Information</h3>
+                        <h3>Analysis Information</h3>
                         <p><strong>Subject ID:</strong> ${data.subject_id || 'N/A'}</p>
                         <p><strong>Reference Height:</strong> ${data.reference_height} cm</p>
                         <p><strong>Garment Type:</strong> ${data.garment_type}</p>
                         <p><strong>Precision Level:</strong> ${data.precision}</p>
                         <p><strong>Views Used:</strong> ${data.views_used.join(', ')}</p>
+                        <p><strong>AI System:</strong> ${data.ai_system}</p>
                         <p><strong>Total Measurements:</strong> ${Object.keys(data.measurements).length}</p>
                         <p><strong>Processing Time:</strong> ${data.metadata.processing_time_ms || 0}ms</p>
                     </div>
@@ -1259,8 +1021,9 @@
                     ${generatePDFMeasurementTables(data.measurements)}
                     
                     <div class="footer">
-                        <p>Report generated by AI Body Measurement System</p>
-                        <p>System Version: ${data.metadata.system_version || 'v1.0'}</p>
+                        <p>Report generated by Real AI Body Measurement System</p>
+                        <p>AI Models: MediaPipe + YOLO | Platform: Render.com</p>
+                        <p>System Version: ${data.metadata.system_version || 'Real AI v2.0'}</p>
                     </div>
                 </body>
                 </html>
@@ -1278,19 +1041,19 @@
                 'Circumferences': [],
                 'Lengths & Heights': [],
                 'Widths & Depths': [],
-                'Specialized Measurements': []
+                'AI Detected Measurements': []
             };
 
             // Categorize measurements
             Object.entries(measurements).forEach(([name, measurement]) => {
                 if (name.includes('circumference')) {
                     categories['Circumferences'].push([name, measurement]);
-                } else if (name.includes('length') || name.includes('height') || name.includes('inseam') || name.includes('outseam')) {
+                } else if (name.includes('length') || name.includes('height')) {
                     categories['Lengths & Heights'].push([name, measurement]);
                 } else if (name.includes('width') || name.includes('depth')) {
                     categories['Widths & Depths'].push([name, measurement]);
                 } else {
-                    categories['Specialized Measurements'].push([name, measurement]);
+                    categories['AI Detected Measurements'].push([name, measurement]);
                 }
             });
 
@@ -1308,7 +1071,7 @@
                                     <th>Value</th>
                                     <th>Unit</th>
                                     <th>Confidence</th>
-                                    <th>Method</th>
+                                    <th>AI Method</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1317,11 +1080,18 @@
                                     const confidenceClass = confidence >= 0.8 ? 'confidence-high' : 
                                                           confidence >= 0.6 ? 'confidence-medium' : 'confidence-low';
                                     
+                                    const value = measurement.value || 0;
+                                    const unit = measurement.unit || 'mm';
+                                    
+                                    // Convert mm to cm for display
+                                    const displayValue = unit === 'mm' ? (value / 10).toFixed(1) : value.toFixed(1);
+                                    const displayUnit = unit === 'mm' ? 'cm' : unit;
+                                    
                                     return `
                                         <tr class="${confidenceClass}">
                                             <td>${name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
-                                            <td>${(measurement.value || 0).toFixed(1)}</td>
-                                            <td>${measurement.unit || 'cm'}</td>
+                                            <td>${displayValue}</td>
+                                            <td>${displayUnit}</td>
                                             <td>${(confidence * 100).toFixed(1)}%</td>
                                             <td>${measurement.method || 'AI Analysis'}</td>
                                         </tr>
@@ -1349,7 +1119,8 @@
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            updateStatus('AI Body Measurement System Ready - Upload images for comprehensive analysis');
+            checkAIStatus();
+            updateStatus('Real AI Body Measurement System Loading...');
         });
     </script>
 </body>
