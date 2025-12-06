@@ -15,47 +15,74 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
 def create_measurement_prompt(height, weight, gender, clothing, camera_distance):
-    """Clean, simple instructions - let AI do its job."""
+    """Clean instructions - original JSON format preserved."""
+    
+    height_m = float(height) / 100
+    bmi = float(weight) / (height_m ** 2)
+    
+    if bmi < 18.5: 
+        body_category = "underweight"
+    elif bmi < 25: 
+        body_category = "normal_weight"
+    elif bmi < 30: 
+        body_category = "overweight"
+    else: 
+        body_category = "obese"
     
     return f"""Measure this person's body from the images.
 
-REFERENCE:
-Height: {height} cm - use this to calibrate your measurements
+REFERENCE: Height is {height} cm - use this to calibrate all measurements.
 
 WHAT TO MEASURE:
 
-1. CHEST/BUST
-   - Location: At nipple level
-   - Measure width from front view
-   - Measure depth from side view
-   - Calculate circumference
+1. CHEST/BUST - at nipple level
+2. WAIST - at narrowest point (NOT belly button)
+3. HIPS - at widest part of buttocks
 
-2. WAIST
-   - Location: At narrowest point of torso (between ribs and hips)
-   - NOT at belly button
-   - Measure width from front view
-   - Measure depth from side view
-   - Calculate circumference
+For each: measure width (front view), measure depth (side view), calculate circumference.
 
-3. HIPS
-   - Location: At widest part of buttocks
-   - Measure width from front view
-   - Measure depth from side view
-   - Calculate circumference
-
-4. SHOULDER WIDTH (front view)
-
-5. ARM LENGTH (shoulder to wrist)
-
-6. LEG LENGTH (hip to ankle)
-
-RETURN JSON:
+RETURN THIS EXACT JSON FORMAT:
 {{
+  "analysis_metadata": {{
+    "timestamp": "{datetime.datetime.now().isoformat()}",
+    "camera_distance_m": {camera_distance},
+    "perspective_distortion": "moderate",
+    "scale_factor_cm_per_pixel": "CALCULATED",
+    "measurement_accuracy_confidence": "XX%",
+    "methodology": "ellipse_approximation"
+  }},
+  "subject_profile": {{
+    "height_cm": {height},
+    "weight_kg": {weight},
+    "gender": "{gender}",
+    "bmi": {bmi:.1f},
+    "body_category": "{body_category}",
+    "clothing_type": "{clothing}"
+  }},
   "measurements": {{
     "circumferences_cm": {{
-      "chest_bust": {{"value": NUMBER, "confidence": "XX%"}},
-      "waist": {{"value": NUMBER, "confidence": "XX%"}},
-      "hips": {{"value": NUMBER, "confidence": "XX%"}}
+      "chest_bust": {{
+        "value": NUMBER,
+        "visible_width_cm": "NUMBER",
+        "estimated_depth_cm": "NUMBER",
+        "confidence": "XX%",
+        "method": "ellipse_approximation"
+      }},
+      "waist": {{
+        "value": NUMBER,
+        "visible_width_cm": "NUMBER",
+        "estimated_depth_cm": "NUMBER",
+        "confidence": "XX%",
+        "method": "ellipse_approximation"
+      }},
+      "hips": {{
+        "value": NUMBER,
+        "visible_width_cm": "NUMBER",
+        "estimated_depth_cm": "NUMBER",
+        "confidence": "XX%",
+        "method": "ellipse_approximation",
+        "notes": "Conservative depth estimation"
+      }}
     }},
     "linear_measurements_cm": {{
       "shoulder_width": {{"value": NUMBER, "confidence": "XX%"}},
@@ -64,11 +91,12 @@ RETURN JSON:
       "neck_circumference": {{"value": NUMBER, "confidence": "XX%"}}
     }}
   }},
-  "subject_profile": {{
-    "height_cm": {height},
-    "weight_kg": {weight},
-    "gender": "{gender}",
-    "clothing_type": "{clothing}"
+  "quality_assessment": {{
+    "image_quality": "excellent/good/fair/poor",
+    "pose_accuracy": "excellent/good/fair/poor",
+    "lighting_conditions": "excellent/good/fair/poor",
+    "measurement_limitations": [],
+    "accuracy_notes": "Measurements calibrated to height"
   }}
 }}"""
 
@@ -104,7 +132,8 @@ def validate_image(file):
 def health_check():
     return jsonify({
         'status': 'healthy',
-        'version': '6.0.0',
+        'service': 'Body Measurement API',
+        'version': '1.0.0',
         'timestamp': datetime.datetime.now().isoformat()
     })
 
@@ -202,7 +231,11 @@ def analyze_measurements():
             return jsonify({
                 'success': True,
                 'data': result,
-                'version': '6.0.0'
+                'processing_info': {
+                    'corrections_applied': False,
+                    'api_provider': 'groq_llama',
+                    'processing_time': datetime.datetime.now().isoformat()
+                }
             })
 
         finally:
