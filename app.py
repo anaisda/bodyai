@@ -38,6 +38,7 @@ WHAT TO MEASURE:
 1. CHEST/BUST - at nipple level
 2. WAIST - at narrowest point (NOT belly button)
 3. HIPS - at widest part of buttocks
+   ⚠️ IMPORTANT: Hips are flatter than they appear - be conservative with hip depth
 
 For each: measure width (front view), measure depth (side view), calculate circumference.
 
