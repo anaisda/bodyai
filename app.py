@@ -1,8 +1,3 @@
-""" meta-llama/llama-4-maverick-17b-128e-instruct
-Body Measurement API - Production Version
-Using exact prompt structure from user
-"""
-
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -21,6 +16,10 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def create_measurement_prompt(height, weight, gender, clothing, camera_distance):
     """User's exact prompt - algorithmic and precise."""
+    
+    # Convert to float to avoid type errors
+    height = float(height)
+    weight = float(weight)
     
     height_m = height / 100
     bmi = weight / (height_m ** 2)
@@ -270,8 +269,8 @@ def analyze_measurements():
 
         try:
             prompt = create_measurement_prompt(
-                params['height'], params['weight'], params['gender'],
-                params['clothing'], params['camera_distance']
+                height, weight, params['gender'],
+                params['clothing'], camera_distance
             )
 
             front_b64 = encode_image_base64(front_path)
