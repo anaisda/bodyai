@@ -1,4 +1,4 @@
-"""
+""" meta-llama/llama-4-maverick-17b-128e-instruct
 Body Measurement API - Production Version
 Using exact prompt structure from user
 """
@@ -284,7 +284,7 @@ def analyze_measurements():
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "llama-3.2-90b-vision-preview",
+                    "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
                     "messages": [{
                         "role": "user",
                         "content": [
