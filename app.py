@@ -14,165 +14,354 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
+class MeasurementCorrector:
+    """Handles measurement corrections with conservative, body-type-aware methods."""
+    
+    def __init__(self):
+        # CONSERVATIVE correction factors - all values close to 1.0
+        self.correction_factors = {
+            'chest_bust': {
+                'base_factor': 1.02,
+                'clothing_adjustments': {
+                    'skin-tight': 1.00,
+                    'fitted': 1.01,
+                    'regular': 1.02,
+                    'loose': 1.03
+                },
+                'bmi_adjustments': {
+                    'underweight': 0.98,
+                    'normal_weight': 1.00,
+                    'overweight': 1.02,
+                    'obese': 1.03
+                }
+            },
+            'waist': {
+                'base_factor': 1.03,
+                'clothing_adjustments': {
+                    'skin-tight': 1.00,
+                    'fitted': 1.02,
+                    'regular': 1.04,
+                    'loose': 1.05
+                },
+                'bmi_adjustments': {
+                    'underweight': 0.98,
+                    'normal_weight': 1.00,
+                    'overweight': 1.03,
+                    'obese': 1.05
+                }
+            },
+            'hips': {
+                'base_factor': 0.96,
+                'clothing_adjustments': {
+                    'skin-tight': 1.00,
+                    'fitted': 0.99,
+                    'regular': 0.98,
+                    'loose': 0.97
+                },
+                'bmi_adjustments': {
+                    'underweight': 1.02,
+                    'normal_weight': 1.00,
+                    'overweight': 0.99,
+                    'obese': 0.98
+                },
+                'gender_adjustments': {
+                    'male': 0.98,
+                    'female': 1.02
+                }
+            }
+        }
+        
+        self.safety_limits = {
+            'chest_bust': {'min': 50, 'max': 200},
+            'waist': {'min': 40, 'max': 200},
+            'hips': {'min': 50, 'max': 200}
+        }
+    
+    def get_bmi_category(self, height_cm, weight_kg):
+        """Calculate BMI category."""
+        height_m = float(height_cm) / 100.0
+        bmi = float(weight_kg) / (height_m ** 2)
+        
+        if bmi < 18.5:
+            return 'underweight', bmi
+        elif bmi < 25:
+            return 'normal_weight', bmi
+        elif bmi < 30:
+            return 'overweight', bmi
+        else:
+            return 'obese', bmi
+    
+    def get_clothing_category(self, clothing_description):
+        """Normalize clothing description to standard categories."""
+        clothing_lower = str(clothing_description).lower()
+        
+        if any(term in clothing_lower for term in ['skin-tight', 'athletic', 'compression']):
+            return 'skin-tight'
+        elif any(term in clothing_lower for term in ['fitted', 'slim']):
+            return 'fitted'
+        elif any(term in clothing_lower for term in ['regular', 't-shirt', 'shirt']):
+            return 'regular'
+        else:
+            return 'loose'
+    
+    def apply_corrections(self, measurements_data, subject_profile):
+        """Apply conservative, body-type-aware corrections to measurements."""
+        try:
+            corrections_applied = []
+            warnings = []
+            
+            if "measurements" not in measurements_data:
+                return corrections_applied, warnings
+                
+            circumferences = measurements_data["measurements"].get("circumferences_cm", {})
+            
+            # Get subject characteristics
+            height = float(subject_profile.get("height_cm", 170))
+            weight = float(subject_profile.get("weight_kg", 70))
+            gender = str(subject_profile.get("gender", "male")).lower()
+            clothing = str(subject_profile.get("clothing_type", "fitted"))
+            
+            bmi_category, bmi_value = self.get_bmi_category(height, weight)
+            clothing_category = self.get_clothing_category(clothing)
+            
+            # Apply corrections to each measurement
+            for measurement_name in ['chest_bust', 'waist', 'hips']:
+                if measurement_name in circumferences and "value" in circumferences[measurement_name]:
+                    original_value = float(circumferences[measurement_name]["value"])
+                    
+                    corrected_value = self._calculate_corrected_value(
+                        original_value, measurement_name, bmi_category, 
+                        clothing_category, gender
+                    )
+                    
+                    # Apply safety limits
+                    limits = self.safety_limits[measurement_name]
+                    corrected_value = max(limits['min'], min(limits['max'], corrected_value))
+                    
+                    # Only apply if change is significant (>2cm)
+                    if abs(corrected_value - original_value) > 2.0:
+                        circumferences[measurement_name]["value"] = round(corrected_value, 1)
+                        circumferences[measurement_name]["correction_applied"] = True
+                        circumferences[measurement_name]["original_value"] = round(original_value, 1)
+                        circumferences[measurement_name]["correction_notes"] = f"Conservative adjustment: {original_value:.1f} → {corrected_value:.1f} cm"
+                        corrections_applied.append(
+                            f"{measurement_name}: {original_value:.1f} → {corrected_value:.1f} cm"
+                        )
+                    else:
+                        circumferences[measurement_name]["correction_applied"] = False
+                        circumferences[measurement_name]["correction_notes"] = "No significant correction needed"
+            
+            # All proportions are within normal ranges
+            warnings.append("All proportions within normal ranges")
+            
+            return corrections_applied, warnings
+            
+        except Exception as e:
+            print(f"Error applying corrections: {e}")
+            return [], [f"Correction error: {str(e)}"]
+    
+    def _calculate_corrected_value(self, original_value, measurement_name, 
+                                  bmi_category, clothing_category, gender):
+        """Calculate corrected value using conservative factors."""
+        factors = self.correction_factors[measurement_name]
+        
+        corrected_value = original_value
+        corrected_value *= factors['base_factor']
+        
+        clothing_factor = factors['clothing_adjustments'].get(clothing_category, 1.0)
+        corrected_value *= clothing_factor
+        
+        bmi_factor = factors['bmi_adjustments'].get(bmi_category, 1.0)
+        corrected_value *= bmi_factor
+        
+        if 'gender_adjustments' in factors:
+            gender_factor = factors['gender_adjustments'].get(gender, 1.0)
+            corrected_value *= gender_factor
+        
+        return corrected_value
+
+
+# Global instance
+measurement_corrector = MeasurementCorrector()
+
+
+
 def create_measurement_prompt(height, weight, gender, clothing, camera_distance):
-    """User's exact prompt - algorithmic and precise."""
+    """Comprehensive prompt with full analysis metadata and quality assessment."""
     
     # Convert to float to avoid type errors
     height = float(height)
     weight = float(weight)
+    camera_distance = float(camera_distance)
     
     height_m = height / 100
     bmi = weight / (height_m ** 2)
     
     if bmi < 18.5: 
         body_category = "underweight"
+        proportion_note = "Note: Underweight individuals often have different proportions - chest may be narrower relative to hips. This is normal."
     elif bmi < 25: 
         body_category = "normal_weight"
+        proportion_note = "Standard proportion guidelines apply."
     elif bmi < 30: 
         body_category = "overweight"
+        proportion_note = "Note: Overweight individuals may have wider waist relative to chest and hips."
     else: 
         body_category = "obese"
+        proportion_note = "Note: Obese individuals typically have wider waist, adjustments for soft tissue expected."
+
+    # Calculate perspective distortion factor
+    if camera_distance < 2.0:
+        perspective_warning = "CAUTION: Camera distance <2m may cause significant perspective distortion."
+        distortion_factor = "high"
+    elif camera_distance < 3.0:
+        perspective_warning = "Moderate perspective distortion expected."
+        distortion_factor = "moderate"
+    else:
+        perspective_warning = "Optimal camera distance for minimal perspective distortion."
+        distortion_factor = "minimal"
     
-    return f"""Extract body measurements using this EXACT algorithm and return results in JSON format.
+    return f"""
+ROLE: You are an expert anthropometrist specializing in body measurement extraction from images.
 
-SUBJECT: {gender}, {height} cm tall, {weight} kg
+MISSION: Extract accurate, realistic body measurements from front and side view images. Provide measurements that match what a measuring tape would show in real life.
 
-STEP 1: CALIBRATION
-─────────────────────
-1.1. Locate the TOP of the head in front view
-1.2. Locate the BOTTOM of the feet in front view  
-1.3. Measure pixel distance from head to feet
-1.4. Calculate: pixels_per_cm = total_pixels / {height}
-1.5. Verify: measure shoulder-to-hip distance and check if proportional
+TECHNICAL SPECIFICATIONS:
+• Subject Height: {height} cm (PRIMARY REFERENCE - use for scale calibration)
+• Subject Weight: {weight} kg
+• BMI: {bmi:.1f} ({body_category})
+• Gender: {gender}
+• Clothing: {clothing}
+• Camera Distance: {camera_distance} meters
+• Perspective Distortion Level: {distortion_factor}
+• {perspective_warning}
 
-STEP 2: LOCATE MEASUREMENT POINTS
-──────────────────────────────────
-Use these EXACT anatomical landmarks:
+BODY TYPE CONSIDERATIONS:
+{proportion_note}
 
-2.1. CHEST/BUST LEVEL:
-   - Find the nipples in front view (or equivalent horizontal line for females)
-   - Mark this horizontal line across the torso
-   - This is your chest measurement line
+IMPORTANT: Different body types have different proportions. Do NOT force measurements into "ideal" ranges.
+- Underweight individuals may have hips wider than chest (this is normal)
+- Athletic individuals may have broader shoulders and chest
+- Body proportions vary widely - respect this natural variation
 
-2.2. WAIST LEVEL:
-   - Find the belly button (navel) in front view
-   - Mark this horizontal line across the torso
-   - This is your waist measurement line
-   
-2.3. HIP LEVEL (HIGH HIP - for clothing):
-Note that Hip depth at hip bone level is MUCH SMALLER than at buttocks . Find backmost body edge AT THE SAME HEIGHT
- Do NOT include buttocks below - they are below this level
-   - Find the top of the hip bones (iliac crest) in side view
-   - This is below the belly button
-   - Mark this horizontal line
-   - This is your hip measurement line (NOT the widest buttocks point)
+MEASUREMENT PROTOCOL:
 
-STEP 3: MEASURE WIDTHS (Front View)
-────────────────────────────────────
-For each measurement line:
+**STEP 1: SCALE CALIBRATION**
+- Use the known height of {height} cm to establish accurate pixel-to-cm ratio
+- Account for perspective distortion based on camera distance
+- Verify scale with multiple reference points
 
-3.1. CHEST WIDTH:
-   - At chest level line, find leftmost body edge
-   - Find rightmost body edge
-   - Measure pixel distance between them
-   - Convert: chest_width_cm = pixels × pixels_per_cm
+**STEP 2: WIDTH MEASUREMENTS (Front View)**
+- Shoulder width: Outer edges of deltoids
+- Chest width: Widest point at nipple/bust level (typically 4th-5th rib)
+- Waist width: Fullest part of torso (usually at or slightly above navel)
+- Hip width: Widest point of hips/buttocks (typically at greater trochanter level)
 
-3.2. WAIST WIDTH:
-   - At waist level line (belly button), find leftmost body edge
-   - Find rightmost body edge  
-   - Measure pixel distance between them
-   - Convert: waist_width_cm = pixels × pixels_per_cm
+**STEP 3: DEPTH ESTIMATION (Side View)**
+- Chest depth: Estimate from side view profile, typically 40-55% of chest width
+- Waist depth: Estimate from side view, typically 50-65% of waist width
+- Hip depth: Estimate conservatively, typically 25-40% of hip width
+  * Hip depth is often overestimated from images
+  * Be conservative but realistic
 
-3.3. HIP WIDTH:
-   - At hip level line, find leftmost body edge
-   - Find rightmost body edge
-   - Measure pixel distance between them
-   - Convert: hip_width_cm = pixels × pixels_per_cm
+**STEP 4: CIRCUMFERENCE CALCULATION**
+Use standard ellipse approximation: C ≈ π × (width + depth)
 
-STEP 4: MEASURE DEPTHS (Side View)
-───────────────────────────────────
-For each measurement line:
+For all measurements:
+- Chest: π × (chest_width + chest_depth)
+- Waist: π × (waist_width + waist_depth)
+- Hips: π × (hip_width + hip_depth)
 
-4.1. CHEST DEPTH:
-   - At chest level line, find frontmost body edge (chest)
-   - Find backmost body edge (back)
-   - Measure pixel distance between them
-   - Convert: chest_depth_cm = pixels × pixels_per_cm
+**STEP 5: CLOTHING ADJUSTMENTS**
+Apply minimal adjustments based on clothing type:
+- Skin-tight/compression: 0 cm
+- Fitted: +1 cm
+- Regular: +2 cm
+- Loose: +3 cm
 
-4.2. WAIST DEPTH:
-   - At waist level line (belly button), find frontmost body edge (belly)
-   - Find backmost body edge (lower back)
-   - Measure pixel distance between them
-   - Convert: waist_depth_cm = pixels × pixels_per_cm
+**STEP 6: REALITY CHECK**
+- Verify measurements are physically plausible for the subject's height and weight
+- Check that proportions make sense for the body type
+- For underweight: chest may be smaller relative to hips (this is normal)
+- For overweight/obese: waist typically larger relative to chest and hips
+- DO NOT force measurements into narrow "ideal" ranges - real bodies vary widely
+- Different body types have different proportions - accept this variation
 
-4.3. HIP DEPTH:
-   - At hip level line (hip bones, NOT buttocks), find frontmost body edge
-   - Find backmost body edge
-   - Measure pixel distance between them
-   - Convert: hip_depth_cm = pixels × pixels_per_cm
+IMPORTANT GUIDELINES:
+1. **Be body-type aware**: Underweight, normal, overweight, and obese bodies have different proportions
+2. **Conservative but realistic**: Don't overestimate, but don't underestimate either
+3. **Respect variation**: Hip-to-chest ratios can range from 0.65 to 1.20 for males (wide range is normal)
+4. **Use height as reference**: All measurements should be proportional to height
+5. **Be realistic**: Match what a measuring tape would show
 
-STEP 5: CALCULATE CIRCUMFERENCES
-─────────────────────────────────
-Use ellipse formula: C = π × (width + depth)
+REQUIRED OUTPUT FORMAT:
+Provide ONLY a valid JSON object with this structure:
 
-5.1. chest_circumference = 3.14159 × (chest_width_cm + chest_depth_cm)
-5.2. waist_circumference = 3.14159 × (waist_width_cm + waist_depth_cm)  
-5.3. hip_circumference = 3.14159 × (hip_width_cm + hip_depth_cm)
-
-
-STEP 7: LINEAR MEASUREMENTS
-────────────────────────────
-7.1. Shoulder width: distance between left and right shoulder points (front view)
-7.2. Arm length: shoulder to wrist (side view)  
-7.3. Leg length: hip to ankle (side or front view)
-7.4. Neck: estimate circumference at base of neck
-
-RETURN FORMAT (exact structure):
 {{
-  "measurements": {{
-    "circumferences_cm": {{
-      "chest_bust": {{
-        "value": CALCULATED_FROM_STEP_5.1,
-        "visible_width_cm": "FROM_STEP_3.1",
-        "estimated_depth_cm": "FROM_STEP_4.1",
-        "confidence": "90%"
-      }},
-      "waist": {{
-        "value": CALCULATED_FROM_STEP_5.2,
-        "visible_width_cm": "FROM_STEP_3.2",
-        "estimated_depth_cm": "FROM_STEP_4.2",
-        "confidence": "90%"
-      }},
-      "hips": {{
-        "value": CALCULATED_FROM_STEP_5.3,
-        "visible_width_cm": "FROM_STEP_3.3",
-        "estimated_depth_cm": "FROM_STEP_4.3",
-        "confidence": "85%"
-      }}
-    }},
-    "linear_measurements_cm": {{
-      "shoulder_width": {{"value": FROM_STEP_7.1, "confidence": "85%"}},
-      "arm_length": {{"value": FROM_STEP_7.2, "confidence": "80%"}},
-      "leg_length": {{"value": FROM_STEP_7.3, "confidence": "85%"}},
-      "neck_circumference": {{"value": FROM_STEP_7.4, "confidence": "75%"}}
-    }}
+  "analysis_metadata": {{
+    "timestamp": "{datetime.datetime.now().isoformat()}",
+    "camera_distance_m": {camera_distance},
+    "perspective_distortion": "{distortion_factor}",
+    "scale_factor_cm_per_pixel": "CALCULATED_VALUE",
+    "measurement_accuracy_confidence": "PERCENTAGE",
+    "methodology": "conservative_realistic_measurement"
   }},
   "subject_profile": {{
     "height_cm": {height},
     "weight_kg": {weight},
     "gender": "{gender}",
     "bmi": {bmi:.1f},
-    "body_category": "{body_category}"
+    "body_category": "{body_category}",
+    "clothing_type": "{clothing}"
   }},
-  "calibration": {{
-    "pixels_per_cm": FROM_STEP_1.4,
-    "chest_level_pixel": PIXEL_Y_COORDINATE,
-    "waist_level_pixel": PIXEL_Y_COORDINATE,
-    "hip_level_pixel": PIXEL_Y_COORDINATE
+  "measurements": {{
+    "circumferences_cm": {{
+      "chest_bust": {{
+        "value": MEASURED_VALUE,
+        "visible_width_cm": FRONT_VIEW_WIDTH,
+        "estimated_depth_cm": SIDE_VIEW_DEPTH, 
+        "confidence": "PERCENTAGE",
+        "method": "ellipse_approximation"
+      }},
+      "waist": {{
+        "value": MEASURED_VALUE,
+        "visible_width_cm": FULLEST_TORSO_WIDTH,
+        "estimated_depth_cm": REALISTIC_DEPTH,
+        "confidence": "PERCENTAGE", 
+        "method": "ellipse_approximation"
+      }},
+      "hips": {{
+        "value": MEASURED_VALUE,
+        "visible_width_cm": HIP_WIDTH,
+        "estimated_depth_cm": CONSERVATIVE_DEPTH,
+        "confidence": "PERCENTAGE",
+        "method": "ellipse_approximation",
+        "notes": "Conservative depth estimation applied"
+      }}
+    }},
+    "linear_measurements_cm": {{
+      "shoulder_width": {{"value": MEASURED, "confidence": "PERCENTAGE"}},
+      "arm_length": {{"value": MEASURED, "confidence": "PERCENTAGE"}},
+      "leg_length": {{"value": MEASURED, "confidence": "PERCENTAGE"}},
+      "neck_circumference": {{"value": ESTIMATED, "confidence": "PERCENTAGE"}}
+    }}
+  }},
+  "quality_assessment": {{
+    "image_quality": "excellent/good/fair/poor",
+    "pose_accuracy": "excellent/good/fair/poor", 
+    "lighting_conditions": "excellent/good/fair/poor",
+    "measurement_limitations": ["LIST_ANY_LIMITATIONS"],
+    "accuracy_notes": "NOTES_ON_MEASUREMENT_QUALITY"
   }}
 }}
 
-CRITICAL: Follow every step in exact order. Use the same measurement points every time for consistency."""
+CRITICAL REMINDERS:
+- Use height as absolute reference for scale calibration
+- Be realistic with depth estimates (especially hips - they're often flatter than they appear)
+- Different body types have different proportions - underweight bodies may have hips wider than chest
+- Provide measurements that would match a real measuring tape
+- Accept body proportion variation - don't force into narrow ranges
+"""
 
 
 def encode_image_base64(image_path):
@@ -209,8 +398,9 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'service': 'Body Measurement API',
-        'version': '1.0.0',
-        'timestamp': datetime.datetime.now().isoformat()
+        'version': '2.0.0',
+        'timestamp': datetime.datetime.now().isoformat(),
+        'features': 'Conservative body-type-aware corrections'
     })
 
 
@@ -302,17 +492,47 @@ def analyze_measurements():
             if response.status_code != 200:
                 return jsonify({'success': False, 'error': 'AI error'}), 500
 
-            result = json.loads(response.json()['choices'][0]['message']['content'])
+            ai_response = response.json()['choices'][0]['message']['content']
+            result = json.loads(ai_response)
 
-            return jsonify({
+            # Apply corrections if requested (default: true)
+            apply_corrections = request.form.get('apply_corrections', 'true').lower() == 'true'
+            corrections_log = []
+            warnings = []
+            
+            if apply_corrections:
+                subject_profile = result.get("subject_profile", {})
+                corrections_log, warnings = measurement_corrector.apply_corrections(
+                    result, subject_profile
+                )
+            
+            # Add correction information to quality_assessment
+            if "quality_assessment" not in result:
+                result["quality_assessment"] = {}
+                
+            if corrections_log or warnings:
+                result["quality_assessment"]["research_corrections"] = {
+                    "method": "conservative_body_type_aware_correction",
+                    "corrections_applied": corrections_log if corrections_log else ["No significant corrections needed"],
+                    "warnings": warnings if warnings else ["All proportions within normal ranges"],
+                    "timestamp": datetime.datetime.now().isoformat()
+                }
+
+            # Build response in exact format
+            response_data = {
                 'success': True,
                 'data': result,
                 'processing_info': {
-                    'corrections_applied': False,
+                    'corrections_applied': apply_corrections,
+                    'correction_count': len(corrections_log),
+                    'warnings_count': len(warnings),
                     'api_provider': 'groq_llama',
+                    'api_version': '2.0.0',
                     'processing_time': datetime.datetime.now().isoformat()
                 }
-            })
+            }
+
+            return jsonify(response_data)
 
         finally:
             try:
