@@ -1,3 +1,8 @@
+"""
+Body Measurement API - Production Version
+Using exact prompt structure from user
+"""
+
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -15,10 +20,10 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
 def create_measurement_prompt(height, weight, gender, clothing, camera_distance):
-    """Clean instructions - original JSON format preserved."""
+    """User's exact prompt - algorithmic and precise."""
     
-    height_m = float(height) / 100
-    bmi = float(weight) / (height_m ** 2)
+    height_m = height / 100
+    bmi = weight / (height_m ** 2)
     
     if bmi < 18.5: 
         body_category = "underweight"
@@ -29,85 +34,156 @@ def create_measurement_prompt(height, weight, gender, clothing, camera_distance)
     else: 
         body_category = "obese"
     
-    return f"""Measure this person's body from the images.
+    return f"""Extract body measurements using this EXACT algorithm and return results in JSON format.
 
-REFERENCE: Height is {height} cm - use this to calibrate all measurements.
+SUBJECT: {gender}, {height} cm tall, {weight} kg
 
-WHAT TO MEASURE:
+STEP 1: CALIBRATION
+─────────────────────
+1.1. Locate the TOP of the head in front view
+1.2. Locate the BOTTOM of the feet in front view  
+1.3. Measure pixel distance from head to feet
+1.4. Calculate: pixels_per_cm = total_pixels / {height}
+1.5. Verify: measure shoulder-to-hip distance and check if proportional
 
-1. CHEST/BUST - at nipple level
-2. WAIST - at narrowest point (NOT belly button)
-3. HIPS - at widest part of buttocks
-   ⚠️ IMPORTANT: Hips are flatter than they appear - be conservative with hip depth
+STEP 2: LOCATE MEASUREMENT POINTS
+──────────────────────────────────
+Use these EXACT anatomical landmarks:
 
-For each: measure width (front view), measure depth (side view), calculate circumference.
+2.1. CHEST/BUST LEVEL:
+   - Find the nipples in front view (or equivalent horizontal line for females)
+   - Mark this horizontal line across the torso
+   - This is your chest measurement line
 
-RETURN THIS EXACT JSON FORMAT:
+2.2. WAIST LEVEL:
+   - Find the belly button (navel) in front view
+   - Mark this horizontal line across the torso
+   - This is your waist measurement line
+   
+2.3. HIP LEVEL (HIGH HIP - for clothing):
+Note that Hip depth at hip bone level is MUCH SMALLER than at buttocks . Find backmost body edge AT THE SAME HEIGHT
+ Do NOT include buttocks below - they are below this level
+   - Find the top of the hip bones (iliac crest) in side view
+   - This is below the belly button
+   - Mark this horizontal line
+   - This is your hip measurement line (NOT the widest buttocks point)
+
+STEP 3: MEASURE WIDTHS (Front View)
+────────────────────────────────────
+For each measurement line:
+
+3.1. CHEST WIDTH:
+   - At chest level line, find leftmost body edge
+   - Find rightmost body edge
+   - Measure pixel distance between them
+   - Convert: chest_width_cm = pixels × pixels_per_cm
+
+3.2. WAIST WIDTH:
+   - At waist level line (belly button), find leftmost body edge
+   - Find rightmost body edge  
+   - Measure pixel distance between them
+   - Convert: waist_width_cm = pixels × pixels_per_cm
+
+3.3. HIP WIDTH:
+   - At hip level line, find leftmost body edge
+   - Find rightmost body edge
+   - Measure pixel distance between them
+   - Convert: hip_width_cm = pixels × pixels_per_cm
+
+STEP 4: MEASURE DEPTHS (Side View)
+───────────────────────────────────
+For each measurement line:
+
+4.1. CHEST DEPTH:
+   - At chest level line, find frontmost body edge (chest)
+   - Find backmost body edge (back)
+   - Measure pixel distance between them
+   - Convert: chest_depth_cm = pixels × pixels_per_cm
+
+4.2. WAIST DEPTH:
+   - At waist level line (belly button), find frontmost body edge (belly)
+   - Find backmost body edge (lower back)
+   - Measure pixel distance between them
+   - Convert: waist_depth_cm = pixels × pixels_per_cm
+
+4.3. HIP DEPTH:
+   - At hip level line (hip bones, NOT buttocks), find frontmost body edge
+   - Find backmost body edge
+   - Measure pixel distance between them
+   - Convert: hip_depth_cm = pixels × pixels_per_cm
+
+STEP 5: CALCULATE CIRCUMFERENCES
+─────────────────────────────────
+Use ellipse formula: C = π × (width + depth)
+
+5.1. chest_circumference = 3.14159 × (chest_width_cm + chest_depth_cm)
+5.2. waist_circumference = 3.14159 × (waist_width_cm + waist_depth_cm)  
+5.3. hip_circumference = 3.14159 × (hip_width_cm + hip_depth_cm)
+
+
+STEP 7: LINEAR MEASUREMENTS
+────────────────────────────
+7.1. Shoulder width: distance between left and right shoulder points (front view)
+7.2. Arm length: shoulder to wrist (side view)  
+7.3. Leg length: hip to ankle (side or front view)
+7.4. Neck: estimate circumference at base of neck
+
+RETURN FORMAT (exact structure):
 {{
-  "analysis_metadata": {{
-    "timestamp": "{datetime.datetime.now().isoformat()}",
-    "camera_distance_m": {camera_distance},
-    "perspective_distortion": "moderate",
-    "scale_factor_cm_per_pixel": "CALCULATED",
-    "measurement_accuracy_confidence": "XX%",
-    "methodology": "ellipse_approximation"
+  "measurements": {{
+    "circumferences_cm": {{
+      "chest_bust": {{
+        "value": CALCULATED_FROM_STEP_5.1,
+        "visible_width_cm": "FROM_STEP_3.1",
+        "estimated_depth_cm": "FROM_STEP_4.1",
+        "confidence": "90%"
+      }},
+      "waist": {{
+        "value": CALCULATED_FROM_STEP_5.2,
+        "visible_width_cm": "FROM_STEP_3.2",
+        "estimated_depth_cm": "FROM_STEP_4.2",
+        "confidence": "90%"
+      }},
+      "hips": {{
+        "value": CALCULATED_FROM_STEP_5.3,
+        "visible_width_cm": "FROM_STEP_3.3",
+        "estimated_depth_cm": "FROM_STEP_4.3",
+        "confidence": "85%"
+      }}
+    }},
+    "linear_measurements_cm": {{
+      "shoulder_width": {{"value": FROM_STEP_7.1, "confidence": "85%"}},
+      "arm_length": {{"value": FROM_STEP_7.2, "confidence": "80%"}},
+      "leg_length": {{"value": FROM_STEP_7.3, "confidence": "85%"}},
+      "neck_circumference": {{"value": FROM_STEP_7.4, "confidence": "75%"}}
+    }}
   }},
   "subject_profile": {{
     "height_cm": {height},
     "weight_kg": {weight},
     "gender": "{gender}",
     "bmi": {bmi:.1f},
-    "body_category": "{body_category}",
-    "clothing_type": "{clothing}"
+    "body_category": "{body_category}"
   }},
-  "measurements": {{
-    "circumferences_cm": {{
-      "chest_bust": {{
-        "value": NUMBER,
-        "visible_width_cm": "NUMBER",
-        "estimated_depth_cm": "NUMBER",
-        "confidence": "XX%",
-        "method": "ellipse_approximation"
-      }},
-      "waist": {{
-        "value": NUMBER,
-        "visible_width_cm": "NUMBER",
-        "estimated_depth_cm": "NUMBER",
-        "confidence": "XX%",
-        "method": "ellipse_approximation"
-      }},
-      "hips": {{
-        "value": NUMBER,
-        "visible_width_cm": "NUMBER",
-        "estimated_depth_cm": "NUMBER",
-        "confidence": "XX%",
-        "method": "ellipse_approximation",
-        "notes": "Conservative depth estimation"
-      }}
-    }},
-    "linear_measurements_cm": {{
-      "shoulder_width": {{"value": NUMBER, "confidence": "XX%"}},
-      "arm_length": {{"value": NUMBER, "confidence": "XX%"}},
-      "leg_length": {{"value": NUMBER, "confidence": "XX%"}},
-      "neck_circumference": {{"value": NUMBER, "confidence": "XX%"}}
-    }}
-  }},
-  "quality_assessment": {{
-    "image_quality": "excellent/good/fair/poor",
-    "pose_accuracy": "excellent/good/fair/poor",
-    "lighting_conditions": "excellent/good/fair/poor",
-    "measurement_limitations": [],
-    "accuracy_notes": "Measurements calibrated to height"
+  "calibration": {{
+    "pixels_per_cm": FROM_STEP_1.4,
+    "chest_level_pixel": PIXEL_Y_COORDINATE,
+    "waist_level_pixel": PIXEL_Y_COORDINATE,
+    "hip_level_pixel": PIXEL_Y_COORDINATE
   }}
-}}"""
+}}
+
+CRITICAL: Follow every step in exact order. Use the same measurement points every time for consistency."""
 
 
 def encode_image_base64(image_path):
+    """Encode image to base64."""
     with open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode('utf-8')
 
 
 def validate_image(file):
+    """Validate uploaded image."""
     if not file or file.filename == '':
         return False, "No file"
     
@@ -208,7 +284,7 @@ def analyze_measurements():
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                    "model": "llama-3.2-90b-vision-preview",
                     "messages": [{
                         "role": "user",
                         "content": [
